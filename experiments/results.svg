@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600">
+<title>Hash-table probe counts by load factor</title>
+<rect width="100%" height="100%" fill="white"/>
+<text x="500" y="32" text-anchor="middle" font-family="sans-serif" font-size="20">Separate-chaining probe experiment</text>
+<line x1="90" y1="520.00" x2="970" y2="520.00" stroke="#dddddd"/>
+<text x="78" y="525.00" text-anchor="end" font-family="sans-serif" font-size="12">0.0</text>
+<line x1="90" y1="470.00" x2="970" y2="470.00" stroke="#dddddd"/>
+<text x="78" y="475.00" text-anchor="end" font-family="sans-serif" font-size="12">0.5</text>
+<line x1="90" y1="420.00" x2="970" y2="420.00" stroke="#dddddd"/>
+<text x="78" y="425.00" text-anchor="end" font-family="sans-serif" font-size="12">1.0</text>
+<line x1="90" y1="370.00" x2="970" y2="370.00" stroke="#dddddd"/>
+<text x="78" y="375.00" text-anchor="end" font-family="sans-serif" font-size="12">1.5</text>
+<line x1="90" y1="320.00" x2="970" y2="320.00" stroke="#dddddd"/>
+<text x="78" y="325.00" text-anchor="end" font-family="sans-serif" font-size="12">2.0</text>
+<line x1="90" y1="270.00" x2="970" y2="270.00" stroke="#dddddd"/>
+<text x="78" y="275.00" text-anchor="end" font-family="sans-serif" font-size="12">2.5</text>
+<line x1="90" y1="220.00" x2="970" y2="220.00" stroke="#dddddd"/>
+<text x="78" y="225.00" text-anchor="end" font-family="sans-serif" font-size="12">3.0</text>
+<line x1="90" y1="170.00" x2="970" y2="170.00" stroke="#dddddd"/>
+<text x="78" y="175.00" text-anchor="end" font-family="sans-serif" font-size="12">3.5</text>
+<line x1="90" y1="120.00" x2="970" y2="120.00" stroke="#dddddd"/>
+<text x="78" y="125.00" text-anchor="end" font-family="sans-serif" font-size="12">4.0</text>
+<line x1="90" y1="70.00" x2="970" y2="70.00" stroke="#dddddd"/>
+<text x="78" y="75.00" text-anchor="end" font-family="sans-serif" font-size="12">4.5</text>
+<line x1="90.00" y1="70" x2="90.00" y2="520" stroke="#eeeeee"/>
+<text x="90.00" y="544" text-anchor="middle" font-family="sans-serif" font-size="12">0.25</text>
+<line x1="266.00" y1="70" x2="266.00" y2="520" stroke="#eeeeee"/>
+<text x="266.00" y="544" text-anchor="middle" font-family="sans-serif" font-size="12">1</text>
+<line x1="500.67" y1="70" x2="500.67" y2="520" stroke="#eeeeee"/>
+<text x="500.67" y="544" text-anchor="middle" font-family="sans-serif" font-size="12">2</text>
+<line x1="735.33" y1="70" x2="735.33" y2="520" stroke="#eeeeee"/>
+<text x="735.33" y="544" text-anchor="middle" font-family="sans-serif" font-size="12">3</text>
+<line x1="970.00" y1="70" x2="970.00" y2="520" stroke="#eeeeee"/>
+<text x="970.00" y="544" text-anchor="middle" font-family="sans-serif" font-size="12">4</text>
+<line x1="90" y1="70" x2="90" y2="520" stroke="#333333"/>
+<line x1="90" y1="520" x2="970" y2="520" stroke="#333333"/>
+<text x="530.00" y="580" text-anchor="middle" font-family="sans-serif" font-size="14">Load factor α</text>
+<text x="22" y="295.00" transform="rotate(-90 22 295.00)" text-anchor="middle" font-family="sans-serif" font-size="14">Average nodes compared</text>
+<polyline points="89.99,409.44 148.64,396.10 207.35,383.32 266.00,370.94 324.65,357.65 383.36,344.12 442.01,332.03 500.67,319.72 559.32,307.68 617.97,294.38 676.68,282.63 735.33,269.37 793.99,257.07 852.70,245.11 911.35,232.80 970.00,218.84" fill="none" stroke="#1769aa" stroke-width="2"/>
+<circle cx="89.99" cy="409.44" r="3" fill="#1769aa"/>
+<circle cx="148.64" cy="396.10" r="3" fill="#1769aa"/>
+<circle cx="207.35" cy="383.32" r="3" fill="#1769aa"/>
+<circle cx="266.00" cy="370.94" r="3" fill="#1769aa"/>
+<circle cx="324.65" cy="357.65" r="3" fill="#1769aa"/>
+<circle cx="383.36" cy="344.12" r="3" fill="#1769aa"/>
+<circle cx="442.01" cy="332.03" r="3" fill="#1769aa"/>
+<circle cx="500.67" cy="319.72" r="3" fill="#1769aa"/>
+<circle cx="559.32" cy="307.68" r="3" fill="#1769aa"/>
+<circle cx="617.97" cy="294.38" r="3" fill="#1769aa"/>
+<circle cx="676.68" cy="282.63" r="3" fill="#1769aa"/>
+<circle cx="735.33" cy="269.37" r="3" fill="#1769aa"/>
+<circle cx="793.99" cy="257.07" r="3" fill="#1769aa"/>
+<circle cx="852.70" cy="245.11" r="3" fill="#1769aa"/>
+<circle cx="911.35" cy="232.80" r="3" fill="#1769aa"/>
+<circle cx="970.00" cy="218.84" r="3" fill="#1769aa"/>
+<polyline points="89.99,407.50 148.64,395.01 207.35,382.50 266.00,370.00 324.65,357.50 383.36,344.99 442.01,332.50 500.67,320.00 559.32,307.50 617.97,295.01 676.68,282.50 735.33,270.00 793.99,257.50 852.70,244.99 911.35,232.50 970.00,220.00" fill="none" stroke="#58a6d6" stroke-width="2"/>
+<circle cx="89.99" cy="407.50" r="3" fill="#58a6d6"/>
+<circle cx="148.64" cy="395.01" r="3" fill="#58a6d6"/>
+<circle cx="207.35" cy="382.50" r="3" fill="#58a6d6"/>
+<circle cx="266.00" cy="370.00" r="3" fill="#58a6d6"/>
+<circle cx="324.65" cy="357.50" r="3" fill="#58a6d6"/>
+<circle cx="383.36" cy="344.99" r="3" fill="#58a6d6"/>
+<circle cx="442.01" cy="332.50" r="3" fill="#58a6d6"/>
+<circle cx="500.67" cy="320.00" r="3" fill="#58a6d6"/>
+<circle cx="559.32" cy="307.50" r="3" fill="#58a6d6"/>
+<circle cx="617.97" cy="295.01" r="3" fill="#58a6d6"/>
+<circle cx="676.68" cy="282.50" r="3" fill="#58a6d6"/>
+<circle cx="735.33" cy="270.00" r="3" fill="#58a6d6"/>
+<circle cx="793.99" cy="257.50" r="3" fill="#58a6d6"/>
+<circle cx="852.70" cy="244.99" r="3" fill="#58a6d6"/>
+<circle cx="911.35" cy="232.50" r="3" fill="#58a6d6"/>
+<circle cx="970.00" cy="220.00" r="3" fill="#58a6d6"/>
+<polyline points="89.99,495.37 148.64,470.74 207.35,445.97 266.00,421.14 324.65,396.00 383.36,371.29 442.01,345.74 500.67,320.77 559.32,295.81 617.97,270.65 676.68,245.43 735.33,220.85 793.99,195.48 852.70,170.52 911.35,145.17 970.00,120.86" fill="none" stroke="#c62828" stroke-width="2"/>
+<circle cx="89.99" cy="495.37" r="3" fill="#c62828"/>
+<circle cx="148.64" cy="470.74" r="3" fill="#c62828"/>
+<circle cx="207.35" cy="445.97" r="3" fill="#c62828"/>
+<circle cx="266.00" cy="421.14" r="3" fill="#c62828"/>
+<circle cx="324.65" cy="396.00" r="3" fill="#c62828"/>
+<circle cx="383.36" cy="371.29" r="3" fill="#c62828"/>
+<circle cx="442.01" cy="345.74" r="3" fill="#c62828"/>
+<circle cx="500.67" cy="320.77" r="3" fill="#c62828"/>
+<circle cx="559.32" cy="295.81" r="3" fill="#c62828"/>
+<circle cx="617.97" cy="270.65" r="3" fill="#c62828"/>
+<circle cx="676.68" cy="245.43" r="3" fill="#c62828"/>
+<circle cx="735.33" cy="220.85" r="3" fill="#c62828"/>
+<circle cx="793.99" cy="195.48" r="3" fill="#c62828"/>
+<circle cx="852.70" cy="170.52" r="3" fill="#c62828"/>
+<circle cx="911.35" cy="145.17" r="3" fill="#c62828"/>
+<circle cx="970.00" cy="120.86" r="3" fill="#c62828"/>
+<polyline points="89.99,495.01 148.64,470.01 207.35,444.99 266.00,420.00 324.65,395.01 383.36,369.99 442.01,344.99 500.67,320.00 559.32,295.01 617.97,270.01 676.68,244.99 735.33,220.00 793.99,195.01 852.70,169.99 911.35,144.99 970.00,120.00" fill="none" stroke="#ef8a8a" stroke-width="2"/>
+<circle cx="89.99" cy="495.01" r="3" fill="#ef8a8a"/>
+<circle cx="148.64" cy="470.01" r="3" fill="#ef8a8a"/>
+<circle cx="207.35" cy="444.99" r="3" fill="#ef8a8a"/>
+<circle cx="266.00" cy="420.00" r="3" fill="#ef8a8a"/>
+<circle cx="324.65" cy="395.01" r="3" fill="#ef8a8a"/>
+<circle cx="383.36" cy="369.99" r="3" fill="#ef8a8a"/>
+<circle cx="442.01" cy="344.99" r="3" fill="#ef8a8a"/>
+<circle cx="500.67" cy="320.00" r="3" fill="#ef8a8a"/>
+<circle cx="559.32" cy="295.01" r="3" fill="#ef8a8a"/>
+<circle cx="617.97" cy="270.01" r="3" fill="#ef8a8a"/>
+<circle cx="676.68" cy="244.99" r="3" fill="#ef8a8a"/>
+<circle cx="735.33" cy="220.00" r="3" fill="#ef8a8a"/>
+<circle cx="793.99" cy="195.01" r="3" fill="#ef8a8a"/>
+<circle cx="852.70" cy="169.99" r="3" fill="#ef8a8a"/>
+<circle cx="911.35" cy="144.99" r="3" fill="#ef8a8a"/>
+<circle cx="970.00" cy="120.00" r="3" fill="#ef8a8a"/>
+<line x1="108" y1="88" x2="132" y2="88" stroke="#1769aa" stroke-width="3"/>
+<text x="140" y="93" font-family="sans-serif" font-size="12">Successful (measured)</text>
+<line x1="108" y1="108" x2="132" y2="108" stroke="#58a6d6" stroke-width="3"/>
+<text x="140" y="113" font-family="sans-serif" font-size="12">Successful (theory: 1 + α/2)</text>
+<line x1="108" y1="128" x2="132" y2="128" stroke="#c62828" stroke-width="3"/>
+<text x="140" y="133" font-family="sans-serif" font-size="12">Unsuccessful (measured)</text>
+<line x1="108" y1="148" x2="132" y2="148" stroke="#ef8a8a" stroke-width="3"/>
+<text x="140" y="153" font-family="sans-serif" font-size="12">Unsuccessful (theory: α)</text>
+</svg>
