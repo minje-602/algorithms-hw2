@@ -106,10 +106,10 @@ def _write_svg(results: list[_Row], destination: Path) -> None:
         return top + (y_max - value) / y_max * plot_height
 
     series = (
-        ("Successful (measured)", 2, "#1769aa"),
-        ("Successful (theory: 1 + α/2)", 3, "#58a6d6"),
-        ("Unsuccessful (measured)", 4, "#c62828"),
-        ("Unsuccessful (theory: α)", 5, "#ef8a8a"),
+        ("Successful (measured)", 2, "#1769aa", False),
+        ("Successful (theory: 1 + α/2)", 3, "#58a6d6", True),
+        ("Unsuccessful (measured)", 4, "#c62828", False),
+        ("Unsuccessful (theory: α)", 5, "#ef8a8a", True),
     )
     lines = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
@@ -147,27 +147,30 @@ def _write_svg(results: list[_Row], destination: Path) -> None:
         )
     )
 
-    for label, column, color in series:
+    for label, column, color, is_theory in series:
         points = " ".join(
             f"{x_position(row[1]):.2f},{y_position(row[column]):.2f}"
             for row in results
         )
+        dash_style = ' stroke-dasharray="6 4"' if is_theory else ""
         lines.append(
-            f'<polyline points="{points}" fill="none" stroke="{color}" stroke-width="2"/>'
+            f'<polyline points="{points}" fill="none" stroke="{color}" stroke-width="2"{dash_style}/>'
         )
-        for row in results:
-            x = x_position(row[1])
-            y = y_position(row[column])
-            lines.append(
-                f'<circle cx="{x:.2f}" cy="{y:.2f}" r="3" fill="{color}"/>'
-            )
+        if not is_theory:
+            for row in results:
+                x = x_position(row[1])
+                y = y_position(row[column])
+                lines.append(
+                    f'<circle cx="{x:.2f}" cy="{y:.2f}" r="3" fill="{color}"/>'
+                )
 
     legend_x = left + 18
     legend_y = top + 18
-    for index, (label, _, color) in enumerate(series):
+    for index, (label, _, color, is_theory) in enumerate(series):
         y = legend_y + index * 20
+        dash_style = ' stroke-dasharray="6 4"' if is_theory else ""
         lines.append(
-            f'<line x1="{legend_x}" y1="{y}" x2="{legend_x + 24}" y2="{y}" stroke="{color}" stroke-width="3"/>'
+            f'<line x1="{legend_x}" y1="{y}" x2="{legend_x + 24}" y2="{y}" stroke="{color}" stroke-width="3"{dash_style}/>'
         )
         lines.append(
             f'<text x="{legend_x + 32}" y="{y + 5}" font-family="sans-serif" font-size="12">{escape(label)}</text>'
