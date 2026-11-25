@@ -23,6 +23,8 @@ class Base62Tests(unittest.TestCase):
         self.assertEqual(decode("A"), 36)
         self.assertEqual(decode("Z"), 61)
         self.assertEqual(decode("10"), 62)
+        self.assertEqual(decode("01"), 1)
+        self.assertEqual(decode("001"), 1)
 
     def test_round_trip_large_values(self):
         for value in (0, 1, 61, 62, 3844, 2**128):
@@ -39,7 +41,7 @@ class Base62Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             decode("")
         with self.assertRaises(ValueError):
-            decode("!")
+            decode("ab!")
         with self.assertRaises(TypeError):
             decode(123)
 
