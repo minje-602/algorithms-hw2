@@ -1,4 +1,6 @@
+import html
 import http.client
+import re
 import socket
 import subprocess
 import sys
@@ -9,6 +11,24 @@ from urllib.parse import urlencode
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVER_SCRIPT = ROOT / "src" / "server.py"
+
+
+def _bucket_index(key, bucket_count):
+    value = 0
+    for character in key:
+        value = (31 * value + ord(character)) % bucket_count
+    return value
+
+
+def _find_colliding_urls():
+    buckets = [None] * 8
+    for index in range(1000):
+        url = f"http://a.com/item-{index}"
+        bucket = _bucket_index(url, len(buckets))
+        if buckets[bucket] is not None and bucket != 1:
+            return buckets[bucket], url, bucket
+        buckets[bucket] = url
+    raise AssertionError("could not find two URLs in the same bucket")
 
 
 class ServerHTTPTests(unittest.TestCase):
@@ -108,10 +128,11 @@ class ServerHTTPTests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertIn('name="url"', body)
-        self.assertIn('action="/shorten"', body)
-        self.assertIn('method="post"', body.lower())
+        self.assertRegex(body, r"""(?i)\baction\s*=\s*(['"])/shorten\1""")
+        self.assertRegex(body, r"""(?i)\bmethod\s*=\s*(['"])post\1""")
         self.assertIn("줄이기", body)
         self.assertRegex(body.lower(), r"<button|type=[\"']submit")
+        self.assertNotIn("오류", body)
 
     def test_post_shortens_url_and_reuses_link_for_duplicate(self):
         url = "http://a.com"
@@ -131,13 +152,24 @@ class ServerHTTPTests(unittest.TestCase):
 
         self.assertEqual(status, 400)
         self.assertIn('name="url"', body)
-        self.assertRegex(body.lower(), r"error|오류|url")
+        self.assertIn("오류", body)
 
     def test_post_invalid_url_returns_bad_request_and_error(self):
-        status, _, body = self._post_url("ftp://a.com")
+        url = "ftp://a.com/<script>alert(1)</script>"
+        status, _, body = self._post_url(url)
 
         self.assertEqual(status, 400)
-        self.assertRegex(body.lower(), r"error|오류|invalid|url")
+        self.assertIn('name="url"', body)
+        self.assertIn("오류", body)
+        self.assertNotRegex(body, r"<\s*/?\s*script\b")
+
+    def test_post_success_does_not_render_script_input_as_html(self):
+        status, _, body = self._post_url(
+            "http://a.com/<script>alert(1)</script>"
+        )
+
+        self.assertEqual(status, 200)
+        self.assertNotRegex(body, r"<\s*/?\s*script\b")
 
     def test_registered_code_and_leading_zero_code_redirect(self):
         url = "http://a.com"
@@ -155,19 +187,61 @@ class ServerHTTPTests(unittest.TestCase):
         self.assertEqual(status, 404)
 
     def test_table_shows_url_code_link_chain_and_hash_calculation(self):
-        url = "http://a.com"
-        self._post_url(url)
+        first_url, second_url, bucket = _find_colliding_urls()
+        self._post_url(first_url)
+        self._post_url(second_url)
 
         status, _, body = self._request("GET", "/table")
-        lowered = body.lower()
-
         self.assertEqual(status, 200)
-        self.assertIn(url, body)
-        self.assertIn("1", body)
-        self.assertIn(f"http://localhost:{self.port}/1", body)
-        self.assertTrue(any(arrow in body for arrow in ("→", "&rarr;", "&#8594;")))
-        self.assertRegex(lowered, r"horner|호너|hash")
-        self.assertIn("<details", lowered)
+        visible_body = html.unescape(body)
+        first_position = visible_body.find(first_url)
+        second_position = visible_body.find(second_url)
+        self.assertGreaterEqual(first_position, 0)
+        self.assertGreater(second_position, first_position)
+        self.assertIn(
+            "→",
+            visible_body[first_position + len(first_url) : second_position],
+        )
+
+        without_links_or_details = re.sub(
+            r"<a\b[^>]*>.*?</a>|<details\b[^>]*>.*?</details>",
+            " ",
+            body,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        visible_without_links_or_details = html.unescape(
+            re.sub(r"<[^>]*>", " ", without_links_or_details)
+        )
+        for url in (first_url, second_url):
+            visible_without_links_or_details = (
+                visible_without_links_or_details.replace(url, " ")
+            )
+        visible_without_links_or_details = re.sub(
+            r"https?://\S+", " ", visible_without_links_or_details
+        )
+        self.assertRegex(
+            visible_without_links_or_details,
+            r"(?<![A-Za-z0-9])1(?![A-Za-z0-9])",
+        )
+        self.assertNotEqual(bucket, 1)
+
+        details = re.findall(
+            r"<details\b[^>]*>(.*?)</details>", body, flags=re.IGNORECASE | re.DOTALL
+        )
+        self.assertTrue(details)
+        calculation = html.unescape(
+            re.sub(r"<[^>]*>", " ", " ".join(details))
+        )
+        self.assertRegex(calculation, r"31\s*(?:\*|×|x)\s*0")
+        self.assertRegex(calculation, r"""ord\s*\(\s*['"]h['"]\s*\)""")
+        self.assertRegex(calculation, r"\+|더하기|더한")
+        self.assertTrue(
+            "%" in calculation
+            or "mod" in calculation.lower()
+            or "나머지" in calculation
+        )
+        self.assertIn("8", calculation)
+        self.assertIn("http://localhost:", body)
 
     def test_forwarded_host_and_proto_build_short_link(self):
         status, _, body = self._post_url(
@@ -189,6 +263,18 @@ class ServerHTTPTests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertIn("http://example.test/1", body)
+
+    def test_script_in_forwarded_host_is_escaped_in_success_page(self):
+        status, _, body = self._post_url(
+            "http://a.com",
+            headers={
+                "X-Forwarded-Host": "example.test<script>alert(1)</script>"
+            },
+        )
+
+        self.assertEqual(status, 200)
+        self.assertIn("&lt;script&gt;", body)
+        self.assertNotRegex(body, r"<\s*/?\s*script\b")
 
     def test_forwarded_proto_without_host_uses_host_header(self):
         status, _, body = self._post_url(
