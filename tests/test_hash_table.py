@@ -81,6 +81,40 @@ class HashTableTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertEqual(table.get(key), index)
 
+    def test_hash_uses_horner_multiplier(self):
+        table = HashTable()
+        table.put("a", 1)
+
+        self.assertEqual(table.find("ab"), (None, 1))
+        self.assertEqual(table.find("ba"), (None, 0))
+
+    def test_find_returns_stored_value(self):
+        table = HashTable()
+        table.put("a", 1)
+
+        self.assertEqual(table.find("a"), (1, 1))
+
+    def test_bucket_count_sets_initial_size(self):
+        table = HashTable(bucket_count=4093, max_load=None)
+        table.put("a", 1)
+
+        self.assertEqual(table.load_factor, 1 / 4093)
+
+    def test_delete_each_position_in_chain(self):
+        keys = ("a", "i", "q")
+        for victim in keys:
+            with self.subTest(victim=victim):
+                table = HashTable()
+                for key in keys:
+                    table.put(key, key.upper())
+
+                self.assertTrue(table.delete(victim))
+                self.assertIsNone(table.get(victim))
+                self.assertEqual(len(table), 2)
+                for key in keys:
+                    if key != victim:
+                        self.assertEqual(table.get(key), key.upper())
+
 
 if __name__ == "__main__":
     unittest.main()

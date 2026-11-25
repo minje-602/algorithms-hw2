@@ -72,6 +72,20 @@ class ShortenerTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     shortener.shorten(url)
 
+    def test_preserves_all_parts_of_https_url(self):
+        shortener = Shortener()
+        url = "https://user@a.com:8443/path?q=1#part"
+
+        self.assertEqual(shortener.expand(shortener.shorten(url)), url)
+
+    def test_rejects_non_whitespace_control_characters(self):
+        shortener = Shortener()
+
+        for code_point in (0, 127):
+            with self.subTest(code_point=code_point):
+                with self.assertRaises(ValueError):
+                    shortener.shorten("http://a.com/" + chr(code_point))
+
 
 if __name__ == "__main__":
     unittest.main()
