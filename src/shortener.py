@@ -3,8 +3,10 @@
 import unicodedata
 from urllib.parse import urlsplit
 
-from src.base62 import decode, encode
+from src.base62 import encode
 from src.hash_table import HashTable
+
+_BASE62_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
 class Shortener:
@@ -29,10 +31,9 @@ class Shortener:
     def expand(self, code: str) -> str | None:
         if not isinstance(code, str):
             return None
-        try:
-            normalized_code = encode(decode(code))
-        except ValueError:
+        if not code or any(character not in _BASE62_ALPHABET for character in code):
             return None
+        normalized_code = code.lstrip("0") or "0"
         return self._code_to_url.get(normalized_code)
 
     @staticmethod
