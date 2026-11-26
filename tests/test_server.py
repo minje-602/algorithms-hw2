@@ -1,16 +1,38 @@
 import html
 import http.client
+from html.parser import HTMLParser
 import re
 import socket
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 import unittest
 from pathlib import Path
 from urllib.parse import urlencode
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVER_SCRIPT = ROOT / "src" / "server.py"
+
+
+class _ArticleTextParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.articles = []
+        self._current_article = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "article":
+            self._current_article = []
+
+    def handle_endtag(self, tag):
+        if tag == "article" and self._current_article is not None:
+            self.articles.append(" ".join(self._current_article))
+            self._current_article = None
+
+    def handle_data(self, data):
+        if self._current_article is not None:
+            self._current_article.append(data)
 
 
 def _bucket_index(key, bucket_count):
@@ -90,7 +112,7 @@ class ServerHTTPTests(unittest.TestCase):
             self.process.stderr.close()
             self.process = None
 
-    def _request(self, method, path, body=None, headers=None):
+    def _request(self, method, path, body=None, headers=None, timeout=5):
         request_headers = {"Host": f"localhost:{self.port}"}
         if headers:
             request_headers.update(headers)
@@ -100,7 +122,7 @@ class ServerHTTPTests(unittest.TestCase):
             )
 
         connection = http.client.HTTPConnection(
-            "127.0.0.1", self.port, timeout=5
+            "127.0.0.1", self.port, timeout=timeout
         )
         try:
             connection.request(
@@ -203,27 +225,17 @@ class ServerHTTPTests(unittest.TestCase):
             visible_body[first_position + len(first_url) : second_position],
         )
 
-        without_links_or_details = re.sub(
-            r"<a\b[^>]*>.*?</a>|<details\b[^>]*>.*?</details>",
-            " ",
-            body,
-            flags=re.IGNORECASE | re.DOTALL,
-        )
-        visible_without_links_or_details = html.unescape(
-            re.sub(r"<[^>]*>", " ", without_links_or_details)
-        )
-        for url in (first_url, second_url):
-            visible_without_links_or_details = (
-                visible_without_links_or_details.replace(url, " ")
-            )
-        visible_without_links_or_details = re.sub(
-            r"https?://\S+", " ", visible_without_links_or_details
-        )
-        self.assertRegex(
-            visible_without_links_or_details,
-            r"(?<![A-Za-z0-9])1(?![A-Za-z0-9])",
-        )
         self.assertNotEqual(bucket, 1)
+
+        article_parser = _ArticleTextParser()
+        article_parser.feed(body)
+        self.assertEqual(len(article_parser.articles), 2)
+        node_codes = []
+        for article in article_parser.articles:
+            match = re.search(r"짧은 코드:\s*([0-9A-Za-z]+)", article)
+            self.assertIsNotNone(match)
+            node_codes.append(match.group(1))
+        self.assertEqual(node_codes, ["1", "2"])
 
         details = re.findall(
             r"<details\b[^>]*>(.*?)</details>", body, flags=re.IGNORECASE | re.DOTALL
@@ -242,6 +254,39 @@ class ServerHTTPTests(unittest.TestCase):
         )
         self.assertIn("8", calculation)
         self.assertIn("http://localhost:", body)
+
+    def test_idle_connection_does_not_block_requests_and_closes(self):
+        idle_connection = socket.create_connection(
+            ("127.0.0.1", self.port), timeout=2
+        )
+        try:
+            start = time.monotonic()
+            status, _, _ = self._request("GET", "/", timeout=2)
+            elapsed = time.monotonic() - start
+
+            self.assertEqual(status, 200)
+            self.assertLess(elapsed, 2)
+
+            idle_connection.settimeout(15)
+            self.assertEqual(idle_connection.recv(1), b"")
+        finally:
+            idle_connection.close()
+
+    def test_simultaneous_distinct_urls_receive_unique_codes(self):
+        urls = [f"http://example.com/concurrent-{index}" for index in range(12)]
+        with ThreadPoolExecutor(max_workers=len(urls)) as executor:
+            responses = list(executor.map(self._post_url, urls))
+
+        short_link_prefix = f"http://localhost:{self.port}/"
+        codes = []
+        for status, _, body in responses:
+            self.assertEqual(status, 200)
+            match = re.search(
+                re.escape(short_link_prefix) + r"([0-9A-Za-z]+)", body
+            )
+            self.assertIsNotNone(match)
+            codes.append(match.group(1))
+        self.assertEqual(len(codes), len(set(codes)))
 
     def test_forwarded_host_and_proto_build_short_link(self):
         status, _, body = self._post_url(

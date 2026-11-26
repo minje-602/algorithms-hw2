@@ -2,8 +2,9 @@
 
 import argparse
 import html
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import threading
 import sys
 from urllib.parse import parse_qsl, quote, urlsplit
 
@@ -38,14 +39,19 @@ def _url_form(url: str = "", error: str | None = None) -> str:
     )
 
 
-class ShorteningHTTPServer(HTTPServer):
+class ShorteningHTTPServer(ThreadingHTTPServer):
     def __init__(self, address: tuple[str, int]) -> None:
         self.shortener = Shortener()
+        self.state_lock = threading.RLock()
         super().__init__(address, ShorteningRequestHandler)
 
 
 class ShorteningRequestHandler(BaseHTTPRequestHandler):
     server: ShorteningHTTPServer
+
+    def setup(self) -> None:
+        self.request.settimeout(10)
+        super().setup()
 
     def do_GET(self) -> None:
         path = urlsplit(self.path).path
@@ -67,7 +73,8 @@ class ShorteningRequestHandler(BaseHTTPRequestHandler):
             return
 
         code = path[1:]
-        url = self.server.shortener.expand(code)
+        with self.server.state_lock:
+            url = self.server.shortener.expand(code)
         if url is None:
             self._send_html(404, _page("<p>단축 URL을 찾을 수 없습니다.</p>", "404"))
             return
@@ -96,12 +103,18 @@ class ShorteningRequestHandler(BaseHTTPRequestHandler):
             )
             if url is None or not url:
                 raise ValueError("URL을 입력해 주세요.")
-            code = self.server.shortener.shorten(url)
-            short_link = self._short_link(code)
         except (UnicodeDecodeError, ValueError) as error:
             self._send_html(400, _page(_url_form(url or "", str(error))))
             return
 
+        try:
+            with self.server.state_lock:
+                code = self.server.shortener.shorten(url)
+        except ValueError as error:
+            self._send_html(400, _page(_url_form(url, str(error))))
+            return
+
+        short_link = self._short_link(code)
         escaped_link = _escape(short_link, quote_attribute=True)
         content = (
             '<p>짧은 링크:</p>'
@@ -123,8 +136,18 @@ class ShorteningRequestHandler(BaseHTTPRequestHandler):
         return f"{scheme}://{host}/{code}"
 
     def _table_page(self) -> str:
-        table = self.server.shortener._url_to_code
-        bucket_count = len(table._buckets)
+        with self.server.state_lock:
+            table = self.server.shortener._url_to_code
+            bucket_count = len(table._buckets)
+            buckets = []
+            for head in table._buckets:
+                entries = []
+                node = head
+                while node is not None:
+                    entries.append((node.key, node.value))
+                    node = node.next
+                buckets.append(tuple(entries))
+
         host = self.headers.get("X-Forwarded-Host")
         if host is None:
             host = self.headers.get("Host")
@@ -135,23 +158,20 @@ class ShorteningRequestHandler(BaseHTTPRequestHandler):
             scheme = "http"
         sections = []
 
-        for bucket_index, head in enumerate(table._buckets):
+        for bucket_index, entries in enumerate(buckets):
             nodes = []
-            node = head
-            while node is not None:
-                code = node.value
+            for key, code in entries:
                 short_link = f"{scheme}://{host}/{code}"
                 node_html = (
                     '<article><p>URL 키: '
-                    f"{_escape(node.key)}</p><p>짧은 코드: "
+                    f"{_escape(key)}</p><p>짧은 코드: "
                     f"{_escape(code)}</p><p>짧은 링크: "
                     f'<a href="{_escape(short_link, quote_attribute=True)}">'
                     f"{_escape(short_link)}</a></p>"
-                    f"{self._hash_calculation(node.key, bucket_count)}"
+                    f"{self._hash_calculation(key, bucket_count)}"
                     "</article>"
                 )
                 nodes.append(node_html)
-                node = node.next
 
             chain = " → ".join(nodes) if nodes else "<p>비어 있음</p>"
             sections.append(
