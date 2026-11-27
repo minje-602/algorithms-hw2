@@ -22,6 +22,7 @@ serve:
 
 experiment:
 	@python3 experiments/probe_experiment.py
+	@python3 experiments/compare_experiment.py
 
 clean:
 	rm -rf src/__pycache__ tests/__pycache__ experiments/__pycache__
