@@ -10,6 +10,8 @@ from urllib.parse import parse_qsl, quote, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from src.hash_table import HashTable
+from src.linear_probing import LinearProbingTable
 from src.shortener import Shortener
 
 
@@ -40,8 +42,10 @@ def _url_form(url: str = "", error: str | None = None) -> str:
 
 
 class ShorteningHTTPServer(ThreadingHTTPServer):
-    def __init__(self, address: tuple[str, int]) -> None:
-        self.shortener = Shortener()
+    def __init__(
+        self, address: tuple[str, int], table_class: type = HashTable
+    ) -> None:
+        self.shortener = Shortener(table_class=table_class)
         self.state_lock = threading.RLock()
         super().__init__(address, ShorteningRequestHandler)
 
@@ -138,6 +142,8 @@ class ShorteningRequestHandler(BaseHTTPRequestHandler):
     def _table_page(self) -> str:
         with self.server.state_lock:
             table = self.server.shortener._url_to_code
+            if isinstance(table, LinearProbingTable):
+                return self._probing_table_page(table)
             bucket_count = len(table._buckets)
             buckets = []
             for head in table._buckets:
@@ -181,6 +187,54 @@ class ShorteningRequestHandler(BaseHTTPRequestHandler):
         content = "".join(sections)
         return _page(content, "URL → 코드 해시 테이블")
 
+    def _probing_table_page(self, table: LinearProbingTable) -> str:
+        host = self.headers.get("X-Forwarded-Host")
+        if host is None:
+            host = self.headers.get("Host")
+        if not host:
+            host = f"localhost:{self.server.server_port}"
+        scheme = self.headers.get("X-Forwarded-Proto")
+        if scheme is None:
+            scheme = "http"
+
+        bucket_count = len(table._slots)
+        sections = []
+        for slot_index, entry in enumerate(table._slots):
+            if entry is None:
+                content = "<p>비어 있음</p>"
+            else:
+                code, probe_count = table.find(entry.key)
+                start = self._hash_index(entry.key, bucket_count)
+                path = " → ".join(
+                    str((start + offset) % bucket_count)
+                    for offset in range(probe_count)
+                )
+                short_link = f"{scheme}://{host}/{code}"
+                content = (
+                    '<article><p>URL 키: '
+                    f"{_escape(entry.key)}</p><p>짧은 코드: "
+                    f"{_escape(code)}</p><p>짧은 링크: "
+                    f'<a href="{_escape(short_link, quote_attribute=True)}">'
+                    f"{_escape(short_link)}</a></p>"
+                    f"<p>시작 칸: {start}</p>"
+                    f"<p>들여다본 칸 수: {probe_count}</p>"
+                    f"<p>지나온 칸: {_escape(path)}</p>"
+                    f"{self._hash_calculation(entry.key, bucket_count)}"
+                    "</article>"
+                )
+            sections.append(
+                f"<section><h2>칸 {slot_index}</h2>{content}</section>"
+            )
+
+        return _page("".join(sections), "URL → 코드 해시 테이블")
+
+    @staticmethod
+    def _hash_index(key: str, bucket_count: int) -> int:
+        value = 0
+        for character in key:
+            value = (31 * value + ord(character)) % bucket_count
+        return value
+
     @staticmethod
     def _hash_calculation(key: str, bucket_count: int) -> str:
         steps = []
@@ -213,11 +267,23 @@ class ShorteningRequestHandler(BaseHTTPRequestHandler):
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the URL shortener web server.")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument(
+        "--table",
+        choices=("chaining", "probing"),
+        default="chaining",
+    )
     arguments = parser.parse_args()
     if not 0 <= arguments.port <= 65535:
         parser.error("--port must be between 0 and 65535")
 
-    with ShorteningHTTPServer(("", arguments.port)) as server:
+    table_class = HashTable
+    if arguments.table == "probing":
+        table_class = LinearProbingTable
+
+    with ShorteningHTTPServer(
+        ("", arguments.port),
+        table_class=table_class,
+    ) as server:
         print(
             f"URL shortener listening on port {server.server_port}",
             flush=True,
