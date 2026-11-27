@@ -86,6 +86,7 @@ class LinearProbingTableTests(unittest.TestCase):
             [table.find(key)[1] for key in ("g", "o", "w")],
             [1, 2, 3],
         )
+        self.assertEqual(table.find("h"), (None, 3))
 
         self.assertTrue(table.delete("g"))
         self.assertEqual(table.get("o"), "O")
@@ -142,16 +143,21 @@ class LinearProbingTableTests(unittest.TestCase):
         self.assertEqual(table.get("i"), "updated")
         self.assertEqual(len(table), 8)
 
-        self.assertTrue(table.delete("a"))
-        for key in keys[1:]:
-            with self.subTest(key=key):
-                self.assertEqual(
-                    table.get(key),
-                    "updated" if key == "i" else key.upper(),
-                )
-        table.put("c", "C")
-        self.assertEqual(table.get("c"), "C")
-        self.assertEqual(len(table), 8)
+        for victim in keys:
+            with self.subTest(victim=victim):
+                table = LinearProbingTable(max_load=None)
+                for key in keys:
+                    table.put(key, key.upper())
+
+                self.assertTrue(table.delete(victim))
+                self.assertEqual(len(table), 7)
+                for key in keys:
+                    if key != victim:
+                        self.assertEqual(table.get(key), key.upper())
+
+                table.put("c", "C")
+                self.assertEqual(table.get("c"), "C")
+                self.assertEqual(len(table), 8)
 
     def test_max_load_validation(self):
         for max_load in (0, 1, 1.5, -0.1, True):
