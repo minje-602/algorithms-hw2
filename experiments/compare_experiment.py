@@ -173,14 +173,14 @@ def _write_svg(results: list[_Result], destination: Path) -> None:
         ) / log_range * plot_height
 
     series = (
-        ("Chaining: success theory", 3, "#1769aa", True),
         ("Chaining: success measured", 2, "#1769aa", False),
-        ("Chaining: failure theory", 5, "#c62828", True),
         ("Chaining: failure measured", 4, "#c62828", False),
-        ("Linear probing: success theory", 7, "#2e7d32", True),
         ("Linear probing: success measured", 6, "#2e7d32", False),
-        ("Linear probing: failure theory", 9, "#7b1fa2", True),
         ("Linear probing: failure measured", 8, "#7b1fa2", False),
+        ("Chaining: success theory", 3, "#111111", True),
+        ("Chaining: failure theory", 5, "#111111", True),
+        ("Linear probing: success theory", 7, "#111111", True),
+        ("Linear probing: failure theory", 9, "#111111", True),
     )
     lines = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
@@ -224,8 +224,9 @@ def _write_svg(results: list[_Result], destination: Path) -> None:
             for result in results
         )
         dash_style = ' stroke-dasharray="7 5"' if is_theory else ""
+        stroke_width = 1.5 if is_theory else 3
         lines.append(
-            f'<polyline points="{points}" fill="none" stroke="{color}" stroke-width="2"{dash_style}/>'
+            f'<polyline points="{points}" fill="none" stroke="{color}" stroke-width="{stroke_width}"{dash_style}/>'
         )
         if not is_theory:
             for result in results:
@@ -243,8 +244,9 @@ def _write_svg(results: list[_Result], destination: Path) -> None:
         x = legend_columns[column]
         y = legend_top + row * 23
         dash_style = ' stroke-dasharray="7 5"' if is_theory else ""
+        stroke_width = 1.5 if is_theory else 3
         lines.append(
-            f'<line x1="{x}" y1="{y}" x2="{x + 28}" y2="{y}" stroke="{color}" stroke-width="2"{dash_style}/>'
+            f'<line x1="{x}" y1="{y}" x2="{x + 28}" y2="{y}" stroke="{color}" stroke-width="{stroke_width}"{dash_style}/>'
         )
         if not is_theory:
             lines.append(
