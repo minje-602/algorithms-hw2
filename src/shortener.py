@@ -10,9 +10,9 @@ _BASE62_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWX
 
 
 class Shortener:
-    def __init__(self) -> None:
-        self._url_to_code = HashTable()
-        self._code_to_url = HashTable()
+    def __init__(self, table_class: type = HashTable) -> None:
+        self._url_to_code = table_class()
+        self._code_to_url = table_class()
         self._next_id = 1
 
     def shorten(self, url: str) -> str:
