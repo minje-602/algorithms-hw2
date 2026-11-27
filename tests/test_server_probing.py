@@ -207,6 +207,7 @@ class ProbingServerHTTPTests(unittest.TestCase):
         start,
         probe_count,
         path,
+        bucket_count=8,
     ):
         text = "".join(article["text"])
         self.assertIn(f"URL 키: {url}", text)
@@ -220,7 +221,7 @@ class ProbingServerHTTPTests(unittest.TestCase):
         self.assertIn(f"지나온 칸: {path}", text)
         details = " ".join(article["details"])
         self.assertTrue(details)
-        for step in _horner_steps(url):
+        for step in _horner_steps(url, bucket_count=bucket_count):
             self.assertIn(step, details)
 
     def test_empty_probing_table_shows_eight_ordered_empty_slots(self):
@@ -337,6 +338,7 @@ class ProbingServerHTTPTests(unittest.TestCase):
                 start,
                 1,
                 str(start),
+                bucket_count=16,
             )
 
     def test_special_characters_in_url_are_html_escaped(self):
