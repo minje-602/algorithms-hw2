@@ -76,7 +76,7 @@ def _horner_steps(key, bucket_count=8):
         remainder = (31 * value + character_code) % bucket_count
         steps.append(
             f"h = (31 * {value} + ord('{character}')) % {bucket_count} "
-            f"= ({31 * value + character_code}) % {bucket_count} "
+            f"= ({31 * value} + {character_code}) % {bucket_count} "
             f"= {remainder}"
         )
         value = remainder
@@ -146,36 +146,39 @@ class ProbingServerHTTPTests(unittest.TestCase):
                 self.process.stderr.close()
             self.process = None
 
-    def _request(self, method, path, body=None):
+    def _request(self, method, path, body=None, headers=None):
         connection = http.client.HTTPConnection(
             "127.0.0.1", self.port, timeout=5
         )
         try:
-            headers = {"Host": f"localhost:{self.port}"}
+            request_headers = {"Host": f"localhost:{self.port}"}
+            if headers:
+                request_headers.update(headers)
             if body is not None:
-                headers["Content-Type"] = (
+                request_headers["Content-Type"] = (
                     "application/x-www-form-urlencoded"
                 )
-            connection.request(method, path, body=body, headers=headers)
+            connection.request(method, path, body=body, headers=request_headers)
             response = connection.getresponse()
             return response.status, response.read().decode("utf-8")
         finally:
             connection.close()
 
-    def _post_url(self, url):
+    def _post_url(self, url, headers=None):
         return self._request(
             "POST",
             "/shorten",
             body=urlencode({"url": url}),
+            headers=headers,
         )
 
-    def _get_sections(self):
-        status, body = self._request("GET", "/table")
+    def _get_sections(self, expected_count=8, headers=None):
+        status, body = self._request("GET", "/table", headers=headers)
         self.assertEqual(status, 200)
 
         parser = _ProbingScreenParser()
         parser.feed(body)
-        self.assertEqual(len(parser.sections), 8)
+        self.assertEqual(len(parser.sections), expected_count)
         for index, section in enumerate(parser.sections):
             with self.subTest(slot=index):
                 self.assertEqual(
@@ -230,16 +233,19 @@ class ProbingServerHTTPTests(unittest.TestCase):
     def test_colliding_urls_use_next_slot_and_show_probe_count(self):
         first_url = "http://a.com/probe-5"
         second_url = "http://a.com/probe-12"
+        third_url = "http://a.com/probe-23"
         self.assertEqual(_bucket_index(first_url), 3)
         self.assertEqual(_bucket_index(second_url), 3)
+        self.assertEqual(_bucket_index(third_url), 3)
 
         self.assertEqual(self._post_url(first_url)[0], 200)
         self.assertEqual(self._post_url(second_url)[0], 200)
+        self.assertEqual(self._post_url(third_url)[0], 200)
         _, sections = self._get_sections()
 
         self._assert_slot_contents(
             sections,
-            {3: first_url, 4: second_url},
+            {3: first_url, 4: second_url, 5: third_url},
         )
         self._assert_article_fields(
             sections[3]["articles"][0],
@@ -256,6 +262,14 @@ class ProbingServerHTTPTests(unittest.TestCase):
             3,
             2,
             "3 → 4",
+        )
+        self._assert_article_fields(
+            sections[5]["articles"][0],
+            third_url,
+            "3",
+            3,
+            3,
+            "3 → 4 → 5",
         )
 
     def test_collision_at_last_slot_wraps_to_zero(self):
@@ -289,6 +303,42 @@ class ProbingServerHTTPTests(unittest.TestCase):
             "7 → 0",
         )
 
+    def test_seven_distinct_hash_starts_are_shown_after_resize_to_sixteen(self):
+        urls_and_starts = (
+            ("http://a.com/probe-17", 0),
+            ("http://a.com/probe-18", 1),
+            ("http://a.com/probe-19", 2),
+            ("http://a.com/probe-70", 3),
+            ("http://a.com/probe-2", 8),
+            ("http://a.com/probe-3", 9),
+            ("http://a.com/probe-9", 15),
+        )
+        start_slots = [
+            _bucket_index(url, bucket_count=16)
+            for url, _ in urls_and_starts
+        ]
+        self.assertEqual(start_slots, [start for _, start in urls_and_starts])
+        self.assertEqual(len(set(start_slots)), 7)
+        self.assertTrue(any(start >= 8 for start in start_slots))
+
+        for url, _ in urls_and_starts:
+            self.assertEqual(self._post_url(url)[0], 200)
+
+        _, sections = self._get_sections(expected_count=16)
+        self._assert_slot_contents(
+            sections,
+            {start: url for url, start in urls_and_starts},
+        )
+        for index, (url, start) in enumerate(urls_and_starts, start=1):
+            self._assert_article_fields(
+                sections[start]["articles"][0],
+                url,
+                str(index),
+                start,
+                1,
+                str(start),
+            )
+
     def test_special_characters_in_url_are_html_escaped(self):
         url = "http://a.com/<script>alert(1)</script>&x=1"
         self.assertEqual(self._post_url(url)[0], 200)
@@ -298,6 +348,35 @@ class ProbingServerHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn(
             "&lt;script&gt;alert(1)&lt;/script&gt;&amp;x=1",
+            body,
+        )
+        self.assertNotIn("<script>alert(1)</script>", body)
+
+    def test_table_short_links_use_forwarded_headers_and_escape_host(self):
+        self.assertEqual(self._post_url("http://a.com")[0], 200)
+
+        status, body = self._request(
+            "GET",
+            "/table",
+            headers={
+                "X-Forwarded-Host": "example.test",
+                "X-Forwarded-Proto": "https",
+            },
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("https://example.test/1", body)
+
+        status, body = self._request(
+            "GET",
+            "/table",
+            headers={
+                "X-Forwarded-Host": "example.test<script>alert(1)</script>",
+                "X-Forwarded-Proto": "https",
+            },
+        )
+        self.assertEqual(status, 200)
+        self.assertIn(
+            "https://example.test&lt;script&gt;alert(1)&lt;/script&gt;/1",
             body,
         )
         self.assertNotIn("<script>alert(1)</script>", body)
